@@ -3,24 +3,44 @@ from flask import Flask, render_template, request, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy  # Import SQLAlchemy here
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
+from google.cloud import secretmanager
+import json
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key'  # Secret key for session management
 
-# Cloud SQL connection settings (replace with your actual values)
-CLOUD_SQL_CONNECTION_NAME = 'module-challenge-incredicorp:us-central1:banking-db'
-DB_USER = 'flask_user'
-DB_PASSWORD = 'root'
-DB_NAME = 'banking_app_db'
+# GCP secret manager
+client = secretmanager.SecretManagerServiceClient()
+requests = "projects/99223452659/secrets/flaskcrud-secret/versions/1"
+response = client.access_secret_version({"name":requests})
+secret_dict = json.loads(response.payload.data.decode("utf-8"))
 
-# SQLAlchemy configuration to connect to Cloud SQL
-app.config['SQLALCHEMY_DATABASE_URI'] = (
-    f"mysql+mysqlconnector://{DB_USER}:{DB_PASSWORD}@/cloudsql/{CLOUD_SQL_CONNECTION_NAME}?unix_socket=/cloudsql/{CLOUD_SQL_CONNECTION_NAME}"
-)
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+dbUsername = secret_dict["dbUsername"]
+dbPassword = secret_dict["dbPassword"]
+dbName = secret_dict["dbName"]
+dbHost = secret_dict["dbHost"]
+dbInstance = secret_dict["dbInstance"]
+instanceUnixSocket = secret_dict["instanceUnixSocket"]
+dbPort = 3306
 
-# Initialize SQLAlchemy
+app.config["SQLALCHEMY_DATABASE_URI"] = f"mysql+pymysql://{dbUsername}:{dbPassword}@{dbHost}:{dbPort}/{dbName}?unix_socket={instanceUnixSocket}"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = True
 db = SQLAlchemy(app)
+
+# # Cloud SQL connection settings (replace with your actual values)
+# CLOUD_SQL_CONNECTION_NAME = 'module-challenge-incredicorp:us-central1:banking-db'
+# DB_USER = 'flask_user'
+# DB_PASSWORD = 'root'
+# DB_NAME = 'banking_app_db'
+
+# # SQLAlchemy configuration to connect to Cloud SQL
+# app.config['SQLALCHEMY_DATABASE_URI'] = (
+#     f"mysql+mysqlconnector://{DB_USER}:{DB_PASSWORD}@/cloudsql/{CLOUD_SQL_CONNECTION_NAME}?unix_socket=/cloudsql/{CLOUD_SQL_CONNECTION_NAME}"
+# )
+# app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# # Initialize SQLAlchemy
+# db = SQLAlchemy(app)
 
 # Models
 class User(db.Model):
